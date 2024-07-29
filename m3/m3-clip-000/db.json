@@ -1,7 +1,7 @@
 {
   "todos": [
     {
-      "todoText": "Clean car",
+      "todoText": "Clean bike",
       "completed": false,
       "important": false,
       "id": 11
@@ -21,7 +21,7 @@
     {
       "id": 7,
       "todoText": "Wash dishes fast",
-      "completed": false,
+      "completed": true,
       "important": false
     },
     {
