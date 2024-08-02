@@ -620,6 +620,117 @@ function App() {
 Instead of Todos REST call can get prerendered TodoListComponent from server for faster loading.
 Downside is there cannot be browser events or local state in SSR components.
 But ProviderContext exists. 
+Using NextJs App Router with /app/page.js root component:
 
+```jsx
+import 'server-only';
+import React, { Suspense } from 'react';
+import Header from './components/layout/Header';
+import Footer from './components/layout//Footer';
+import ImportantContextProvider from './contexts/ImportantContext';
+import ToDoFilterToolbar from './components/todo/ToDoFilterToolbar';
+import ToDoList from './components/todo/ToDoList';
 
+export default function Page() {
+  return (
+    <>
+      <Header />
+      <ImportantContextProvider>
+        <ToDoFilterToolbar />
+        <Suspense fallback={<div>Loading... </div>}> {/* suspense wrapper for loading ToDoList */}
+          <ToDoList />
+        </Suspense>
+      </ImportantContextProvider>
+      <Footer />
+    </>
+  );
+}
+```
+
+The context is a client side hook with `'use client';` at the top:
+
+````jsx
+'use client';
+import { createContext, useContext, useState } from 'react';
+
+export const ImportantContext = createContext();
+
+export default function ImportantContextProvider({
+  children,
+}) {
+  const [important, setImportant] = useState(false);
+  return (
+    <ImportantContext.Provider
+      value={{ important, setImportant }}
+    >
+      {children}
+    </ImportantContext.Provider>
+  );
+}
+
+export const useImportantContext = () => {
+  const value = useContext(ImportantContext);
+  if (!value) {
+    throw new Error(
+      'useImportantContext must be used within an ' +
+        'ImportantContextProvider',
+    );
+  }
+  return value;
+};
+````
+
+The ToDoList component is a server component using the `server-only` package:
+
+````jsx
+import "server-only";
+import ToDoItem from "../../components/todo/ToDoItem";
+import ToDoItemClient from
+          "../../components/todo/ToDoItemClient";
+const sleep = (ms) => new Promise((resolve) =>
+        setTimeout(resolve, ms));
+
+export default async function ToDoList() {
+  const url = "http://localhost:3000/api/todos";
+  const res = await fetch(url, {
+    next: {
+      revalidate: 0,
+    },
+  });
+  const results = await res.json();
+  const todoList = results;
+  await sleep(2000);
+  return (
+          <div className="tasks">
+            {todoList.map((toDo) => {
+              return (
+                      <ToDoItemClient toDo={toDo} key={toDo.id}>
+                        <ToDoItem toDo={toDo} />
+                      </ToDoItemClient>
+              );
+            })}
+          </div>
+  );
+}
+````
+
+Since the child component ToDoItem is a client side component it is wrapped in a function called ToDoItemClient:
+
+````jsx
+'use client';
+
+import { useImportantContext } from '../../contexts/ImportantContext';
+
+export default function ToDoItemClient({ toDo, children }) {
+  const { important } = useImportantContext();
+
+  return important === false ? (
+    <>{children}</>
+  ) : toDo.important === true ? (
+    <>{children}</>
+  ) : null;
+}
+````
+
+The function can access the client context state as well as the children passed in from the ToDoList server component. 
 
